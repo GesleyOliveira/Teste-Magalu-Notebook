@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+*.venv
+.env
+.venv/
+env/
+venv/
+build/
+dist/
+
+# Logs e arquivos temporários
+*.log
+*.tmp
+*.bak
+*.swp
+
+ VS Code
+.vscode/
+
+#  Jupyter Notebook 
+.ipynb_checkpoints/
+
+# 👉 Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos sensíveis
+config/
+Output/
