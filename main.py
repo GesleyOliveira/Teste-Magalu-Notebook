@@ -1,6 +1,7 @@
 import os
 import time
 import pandas as pd
+import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -42,7 +43,7 @@ for tentativa in range(3):
     try:
         print(f"[INFO] Tentando acessar o site (tentativa {tentativa+1})...")
         driver.get(url)
-        time.sleep(4)
+        #time.sleep(4)
         if "Magazine Luiza" in driver.title:
             break
     except:
@@ -59,7 +60,7 @@ else:
 # ========================
 try:
     # Aceitar cookies se necessário
-    time.sleep(2)
+    #time.sleep(2)
     consent_btns = driver.find_elements(By.CSS_SELECTOR, "button[data-testid='privacy-modal-accept']")
     if consent_btns:
         print("[INFO] Aceitando cookies...")
@@ -86,39 +87,56 @@ except TimeoutException:
 # ========================
 # COLETA DE PRODUTOS
 # ========================
+# ========================
+# COLETA DE PRODUTOS
+# ========================
 print("[INFO] Coletando produtos de todas as páginas...")
 dados = []
+
 while True:
     try:
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[data-testid='product-card']")))
-        produtos = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='product-card']")
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a[data-testid='product-card-container']")))
+        produtos = driver.find_elements(By.CSS_SELECTOR, "a[data-testid='product-card-container']")
 
         print(f"[DEBUG] {len(produtos)} produtos encontrados nesta página.")
 
         for p in produtos:
             try:
-                nome = p.find_element(By.CSS_SELECTOR, "h2[data-testid=product-title]").text.strip()
-                url_prod = p.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                # Título do produto
+                nome = p.find_element(By.CSS_SELECTOR, "h2[data-testid='product-title']").text.strip()
+                
+                # URL do produto
+                url_prod = p.get_attribute("href")
+                
+                # Quantidade de avaliações (se houver)
                 try:
-                    aval = p.find_element(By.CSS_SELECTOR, "div[class=sc-ghzrUh dFAaQO]").text
-                    qtd_aval = int(aval.strip("()").split()[0])
+                    aval_texto = p.find_element(By.CSS_SELECTOR, "span[class='sc-boZgaH']").text
+                    qtd_aval = int(aval_texto.strip().split()[0])
                 except:
                     qtd_aval = 0
-                    
+                
                 dados.append([nome, qtd_aval, url_prod])
+
             except Exception as e:
                 print("[AVISO] Produto ignorado:", e)
 
-        # Ir para próxima página
-        proxima = driver.find_element(By.CSS_SELECTOR, "a[data-testid='pagination-button-next']")
-        if 'disabled' in proxima.get_attribute("class"):
-            break
-        driver.execute_script("arguments[0].click();", proxima)
-        time.sleep(5)
+        # Para avançar páginas, você pode descomentar e ajustar aqui se necessário
+
+        break  # Remova isso se for paginar
 
     except Exception as e:
         print("[INFO] Fim da paginação ou erro ao mudar de página:", e)
         break
+
+
+        # Ir para próxima página
+        #proxima = driver.find_element(By.CLASS_NAME, "a[data-testid='pagination-button-next']")
+        #if 'disabled' in proxima.get_attribute("class"):
+        #    break
+        #driver.execute_script("arguments[0].click();", proxima)
+        #time.sleep(5)
+
+    
 
 driver.quit()
 print(f"[INFO] {len(dados)} produtos com avaliação coletados.")
