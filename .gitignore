@@ -29,4 +29,5 @@ Thumbs.db
 
 # Arquivos sensíveis
 config/
+config/credentials.env
 Output/
