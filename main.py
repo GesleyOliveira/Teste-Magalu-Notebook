@@ -2,6 +2,7 @@ import os
 import time
 import re
 import pandas as pd
+import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -13,6 +14,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 import yagmail
 from dotenv import load_dotenv
+
+
 
 
 
@@ -88,60 +91,75 @@ except TimeoutException:
     exit(1)
 
 # ========================
-# COLETA DE PRODUTOS
+# COLETA DE PRODUTOS (AJUSTADA)
 # ========================
 print("[INFO] Coletando produtos de todas as páginas...")
 dados = []
-while True:
+max_pages = 17  # Última página conhecida
+
+for page in range(1, max_pages + 1):
+    if page == 1:
+        page_url = "https://m.magazineluiza.com.br/busca/notebooks/"
+    else:
+        page_url = f"https://m.magazineluiza.com.br/busca/notebooks/?page={page}"
+
+    print(f"[INFO] Acessando página {page}: {page_url}")
+    driver.get(page_url)
+    time.sleep(3)  # espera carregar
+
     try:
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[data-testid='product-card']")))
-        produtos = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='product-card']")
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a[data-testid='product-card-container']")))
+        produtos = driver.find_elements(By.CSS_SELECTOR, "a[data-testid='product-card-container']")
 
         print(f"[DEBUG] {len(produtos)} produtos encontrados na página {page}.")
 
         for p in produtos:
             try:
-                nome = p.find_element(By.CSS_SELECTOR, "h2[data-testid=product-title]").text.strip()
-                url_prod = p.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                nome = p.find_element(By.CSS_SELECTOR, "h2[data-testid='product-title']").text.strip()
+                url_prod = p.get_attribute("href")
                 try:
-                    aval = p.find_element(By.CSS_SELECTOR, "div[class=sc-ghzrUh dFAaQO]").text
-                    qtd_aval = int(aval.strip("()").split()[0])
+                    review_div = p.find_element(By.CSS_SELECTOR, "div[data-testid='review']")
+                    aval_span = review_div.find_element(By.CSS_SELECTOR, "span.sc-boZgaH")
+                    aval_texto = aval_span.text  # exemplo: "4.8 (446)"
+                    qtd_aval = int(aval_texto.split('(')[-1].replace(')', ''))  # pega o número entre parênteses
                 except:
                     qtd_aval = 0
-                    
+                
                 dados.append([nome, qtd_aval, url_prod])
-            except Exception as e:
-                print("[AVISO] Produto ignorado:", e)
 
-        # Ir para próxima página
-        proxima = driver.find_element(By.CSS_SELECTOR, "a[data-testid='pagination-button-next']")
-        if 'disabled' in proxima.get_attribute("class"):
-            break
-        driver.execute_script("arguments[0].click();", proxima)
-        time.sleep(5)
+            except Exception as e:
+                if "no such element" in str(e) and "product-title" in str(e):
+                    continue  # ignora silenciosamente
+                else:
+                    print("[AVISO] Produto ignorado:", e)
 
     except Exception as e:
-        print("[ERRO] Interrompido devido a erro inesperado:", e)
-        break
+        print(f"[ERRO] Falha ao coletar produtos na página {page}:", e)
+        continue  # tenta próxima página mesmo assim
 
 driver.quit()
 
-
 print(f"[INFO] {len(dados)} produtos com avaliação coletados.")
 
+
 # ========================
-# EXPORTAÇÃO PARA EXCEL
+# EXPORTAÇÃO PARA EXCEL (AJUSTADA)
 # ========================
 df = pd.DataFrame(dados, columns=["PRODUTO", "QTD_AVAL", "URL"])
-df = df[df["QTD_AVAL"].notnull()]
+
+# Retira linhas sem avaliações (zero ou nulo)
+df = df[df["QTD_AVAL"] > 0]
+
+# Separa piores (<100 avaliações) e melhores (≥100 avaliações)
 piores = df[df["QTD_AVAL"] < 100]
 melhores = df[df["QTD_AVAL"] >= 100]
 
 print("[INFO] Salvando arquivo Excel...")
 with pd.ExcelWriter(arquivo_excel, engine='openpyxl') as writer:
-    piores.to_excel(writer, sheet_name="Piores", index=False)
     melhores.to_excel(writer, sheet_name="Melhores", index=False)
+    piores.to_excel(writer, sheet_name="Piores", index=False)
 print("[INFO] Arquivo salvo em:", arquivo_excel)
+
 
 # ========================
 # ENVIO DE E-MAIL
@@ -152,7 +170,13 @@ try:
     yag.send(
         to=EMAIL_DESTINATARIO,
         subject="Relatório Notebooks",
-        contents="Olá, aqui está o seu relatório dos notebooks extraídos da Magazine Luiza.",
+        contents=[
+            "Olá, aqui está o seu relatório dos notebooks extraídos da Magazine Luiza.",
+            "",
+            "",
+            "Atenciosamente,",
+            "Robô"
+        ],
         attachments=arquivo_excel
     )
     print("[INFO] E-mail enviado com sucesso.")
