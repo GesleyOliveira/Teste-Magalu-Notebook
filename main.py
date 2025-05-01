@@ -2,7 +2,6 @@ import os
 import time
 import re
 import pandas as pd
-#import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -47,7 +46,7 @@ for tentativa in range(3):
     try:
         print(f"[INFO] Tentando acessar o site (tentativa {tentativa+1})...")
         driver.get(url)
-        #time.sleep(4)
+        time.sleep(4)
         if "Magazine Luiza" in driver.title:
             break
     except:
@@ -64,11 +63,12 @@ else:
 # ========================
 try:
     # Aceitar cookies se necessário
-    #consent_btns = driver.find_elements(By.CSS_SELECTOR, "button[data-testid='privacy-modal-accept']")
-    #if consent_btns:
-    #    print("[INFO] Aceitando cookies...")
-    #    consent_btns[0].click()
-    #    time.sleep(2)
+    time.sleep(2)
+    consent_btns = driver.find_elements(By.CSS_SELECTOR, "button[data-testid='privacy-modal-accept']")
+    if consent_btns:
+        print("[INFO] Aceitando cookies...")
+        consent_btns[0].click()
+        time.sleep(2)
 
     print("[INFO] Buscando barra de pesquisa...")
     barra_pesquisa = wait.until(
@@ -87,48 +87,38 @@ except TimeoutException:
     driver.quit()
     exit(1)
 
-
 # ========================
 # COLETA DE PRODUTOS
 # ========================
 print("[INFO] Coletando produtos de todas as páginas...")
 dados = []
-page = 1  # começamos na página 1
-
 while True:
     try:
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "li.sc-hwhvDX")))
-        produtos = driver.find_elements(By.CSS_SELECTOR, "li.sc-hwhvDX")
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[data-testid='product-card']")))
+        produtos = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='product-card']")
 
         print(f"[DEBUG] {len(produtos)} produtos encontrados na página {page}.")
 
         for p in produtos:
             try:
-                nome = p.find_element(By.CSS_SELECTOR, "h2[data-testid='product-title']").text.strip()
-                url_prod = p.find_element(By.TAG_NAME, "a").get_attribute("href")
-
+                nome = p.find_element(By.CSS_SELECTOR, "h2[data-testid=product-title]").text.strip()
+                url_prod = p.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
                 try:
-                    aval_texto = p.find_element(By.CSS_SELECTOR, "span.sc-boZgaH").text
-                    match = re.search(r'\((\d+)\)', aval_texto)
-                    qtd_aval = int(match.group(1)) if match else 0
+                    aval = p.find_element(By.CSS_SELECTOR, "div[class=sc-ghzrUh dFAaQO]").text
+                    qtd_aval = int(aval.strip("()").split()[0])
                 except:
                     qtd_aval = 0
-
+                    
                 dados.append([nome, qtd_aval, url_prod])
-
             except Exception as e:
                 print("[AVISO] Produto ignorado:", e)
 
-        # Tenta encontrar o botão da próxima página
-        try:
-            next_button = driver.find_element(
-                By.CSS_SELECTOR, f"a[data-testid='pagination-item'][title='página {page + 1}']"
-            )
-            driver.execute_script("arguments[0].click();", next_button)
-            page += 1
-        except Exception as e:
-            print("[INFO] Fim da paginação detectado ou próximo botão não encontrado.")
+        # Ir para próxima página
+        proxima = driver.find_element(By.CSS_SELECTOR, "a[data-testid='pagination-button-next']")
+        if 'disabled' in proxima.get_attribute("class"):
             break
+        driver.execute_script("arguments[0].click();", proxima)
+        time.sleep(5)
 
     except Exception as e:
         print("[ERRO] Interrompido devido a erro inesperado:", e)
