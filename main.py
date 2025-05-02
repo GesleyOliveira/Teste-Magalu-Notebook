@@ -1,8 +1,7 @@
 import os
 import time
-import re
+
 import pandas as pd
-import openpyxl
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -31,18 +30,17 @@ output_dir = "Output"
 os.makedirs(output_dir, exist_ok=True)
 arquivo_excel = os.path.join(output_dir, "Notebooks.xlsx")
 
-# ========================
+
 # INICIAR NAVEGADOR
-# ========================
+
 print("[INFO] Iniciando navegador...")
 chrome_options = Options()
-# chrome_options.add_argument("--headless")  # Ative isso se não quiser abrir o navegador
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 wait = WebDriverWait(driver, 5)
 
-# ========================
+
 # ACESSAR SITE
-# ========================
+
 print("[INFO] Acessando o site...")
 url = "https://www.magazineluiza.com.br"
 for tentativa in range(3):
@@ -61,9 +59,9 @@ else:
     driver.quit()
     exit(1)
 
-# ========================
+
 # INTERAGIR COM A PÁGINA
-# ========================
+
 try:
     # Aceitar cookies se necessário
     time.sleep(2)
@@ -90,12 +88,12 @@ except TimeoutException:
     driver.quit()
     exit(1)
 
-# ========================
-# COLETA DE PRODUTOS (AJUSTADA)
-# ========================
+
+# COLETA DE PRODUTOS 
+
 print("[INFO] Coletando produtos de todas as páginas...")
 dados = []
-max_pages = 17  # Última página conhecida
+max_pages = 17  
 
 for page in range(1, max_pages + 1):
     if page == 1:
@@ -105,7 +103,7 @@ for page in range(1, max_pages + 1):
 
     print(f"[INFO] Acessando página {page}: {page_url}")
     driver.get(page_url)
-    time.sleep(3)  # espera carregar
+    time.sleep(3) 
 
     try:
         wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a[data-testid='product-card-container']")))
@@ -120,8 +118,8 @@ for page in range(1, max_pages + 1):
                 try:
                     review_div = p.find_element(By.CSS_SELECTOR, "div[data-testid='review']")
                     aval_span = review_div.find_element(By.CSS_SELECTOR, "span.sc-boZgaH")
-                    aval_texto = aval_span.text  # exemplo: "4.8 (446)"
-                    qtd_aval = int(aval_texto.split('(')[-1].replace(')', ''))  # pega o número entre parênteses
+                    aval_texto = aval_span.text  
+                    qtd_aval = int(aval_texto.split('(')[-1].replace(')', ''))  
                 except:
                     qtd_aval = 0
                 
@@ -129,28 +127,28 @@ for page in range(1, max_pages + 1):
 
             except Exception as e:
                 if "no such element" in str(e) and "product-title" in str(e):
-                    continue  # ignora silenciosamente
+                    continue  
                 else:
                     print("[AVISO] Produto ignorado:", e)
 
     except Exception as e:
         print(f"[ERRO] Falha ao coletar produtos na página {page}:", e)
-        continue  # tenta próxima página mesmo assim
+        continue  
 
 driver.quit()
 
 print(f"[INFO] {len(dados)} produtos com avaliação coletados.")
 
 
-# ========================
-# EXPORTAÇÃO PARA EXCEL (AJUSTADA)
-# ========================
+
+# EXPORTAÇÃO PARA EXCEL 
+
 df = pd.DataFrame(dados, columns=["PRODUTO", "QTD_AVAL", "URL"])
 
-# Retira linhas sem avaliações (zero ou nulo)
+
 df = df[df["QTD_AVAL"] > 0]
 
-# Separa piores (<100 avaliações) e melhores (≥100 avaliações)
+
 piores = df[df["QTD_AVAL"] < 100]
 melhores = df[df["QTD_AVAL"] >= 100]
 
@@ -161,9 +159,9 @@ with pd.ExcelWriter(arquivo_excel, engine='openpyxl') as writer:
 print("[INFO] Arquivo salvo em:", arquivo_excel)
 
 
-# ========================
+
 # ENVIO DE E-MAIL
-# ========================
+
 try:
     print("[INFO] Enviando e-mail com o relatório...")
     yag = yagmail.SMTP(EMAIL_REMETENTE, SENHA_APP)
