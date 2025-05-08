@@ -18,9 +18,9 @@ from dotenv import load_dotenv
 
 
 
-# ========================
+
 # CONFIGURAÇÕES INICIAIS
-# ========================
+
 load_dotenv("config/credentials.env")
 EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
 SENHA_APP = os.getenv("SENHA_APP")
@@ -82,7 +82,7 @@ try:
     print("[DEBUG] Página de resultados carregada:", driver.current_url)
 
 except TimeoutException:
-    print("[ERRO] Não foi possível encontrar a barra de pesquisa após 20s.")
+    print("[ERRO] Não foi possível encontrar a barra de pesquisa após 10s.")
     print("[DEBUG] HTML atual:")
     print(driver.page_source[:1000])
     driver.quit()
